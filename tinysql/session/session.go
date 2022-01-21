@@ -217,12 +217,12 @@ func (s *session) doCommit(ctx context.Context) error {
 	}
 
 	// mockCommitError and mockGetTSErrorInRetry use to test PR #8743.
-	failpoint.Inject("mockCommitError", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("mockCommitError")); ok {
 		if val.(bool) && kv.IsMockCommitErrorEnable() {
 			kv.MockCommitErrorDisable()
-			failpoint.Return(kv.ErrTxnRetryable)
+			return kv.ErrTxnRetryable
 		}
-	})
+	}
 
 	// Get the related table IDs.
 	relatedTables := s.GetSessionVars().TxnCtx.TableDeltaMap
@@ -268,11 +268,11 @@ func (s *session) commitTxn(ctx context.Context) error {
 func (s *session) CommitTxn(ctx context.Context) error {
 	err := s.commitTxn(ctx)
 
-	failpoint.Inject("keepHistory", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("keepHistory")); ok {
 		if val.(bool) {
-			failpoint.Return(err)
+			return err
 		}
-	})
+	}
 
 	s.sessionVars.TxnCtx.Cleanup()
 	return err

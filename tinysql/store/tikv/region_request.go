@@ -82,12 +82,12 @@ func (s *RegionRequestSender) SendReqCtx(
 	rpcCtx *RPCContext,
 	err error,
 ) {
-	failpoint.Inject("tikvStoreSendReqResult", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("tikvStoreSendReqResult")); ok {
 		switch val.(string) {
 		case "timeout":
-			failpoint.Return(nil, nil, errors.New("timeout"))
+			return nil, nil, errors.New("timeout")
 		}
-	})
+	}
 
 	replicaRead := kv.ReplicaReadLeader
 	seed := req.ReplicaReadSeed

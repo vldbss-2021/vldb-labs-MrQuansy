@@ -164,12 +164,12 @@ func (txn *tikvTxn) Commit(ctx context.Context) error {
 	}
 	defer txn.close()
 
-	failpoint.Inject("mockCommitError", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("mockCommitError")); ok {
 		if val.(bool) && kv.IsMockCommitErrorEnable() {
 			kv.MockCommitErrorDisable()
-			failpoint.Return(errors.New("mock commit error"))
+			return errors.New("mock commit error")
 		}
-	})
+	}
 
 	// connID is used for log.
 	var connID uint64

@@ -214,11 +214,11 @@ func (cc *clientConn) readPacket() ([]byte, error) {
 }
 
 func (cc *clientConn) writePacket(data []byte) error {
-	failpoint.Inject("FakeClientConn", func() {
+	if _, ok := failpoint.Eval(_curpkg_("FakeClientConn")); ok {
 		if cc.pkt == nil {
-			failpoint.Return(nil)
+			return nil
 		}
-	})
+	}
 	return cc.pkt.writePacket(data)
 }
 
@@ -726,11 +726,11 @@ func (cc *clientConn) useDB(ctx context.Context, db string) (err error) {
 }
 
 func (cc *clientConn) flush() error {
-	failpoint.Inject("FakeClientConn", func() {
+	if _, ok := failpoint.Eval(_curpkg_("FakeClientConn")); ok {
 		if cc.pkt == nil {
-			failpoint.Return(nil)
+			return nil
 		}
-	})
+	}
 	return cc.pkt.flush()
 }
 

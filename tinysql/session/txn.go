@@ -169,19 +169,19 @@ func (st *TxnState) Commit(ctx context.Context) error {
 	}
 
 	// mockCommitError8942 is used for PR #8942.
-	failpoint.Inject("mockCommitError8942", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("mockCommitError8942")); ok {
 		if val.(bool) {
-			failpoint.Return(kv.ErrTxnRetryable)
+			return kv.ErrTxnRetryable
 		}
-	})
+	}
 
 	// mockCommitRetryForAutoID is used to mock an commit retry for adjustAutoIncrementDatum.
-	failpoint.Inject("mockCommitRetryForAutoID", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("mockCommitRetryForAutoID")); ok {
 		if val.(bool) && !mockAutoIDRetry() {
 			enableMockAutoIDRetry()
-			failpoint.Return(kv.ErrTxnRetryable)
+			return kv.ErrTxnRetryable
 		}
-	})
+	}
 
 	return st.Transaction.Commit(ctx)
 }
@@ -350,9 +350,9 @@ func (s *session) getTxnFuture(ctx context.Context) *txnFuture {
 	oracleStore := s.store.GetOracle()
 	tsFuture := oracleStore.GetTimestampAsync(ctx)
 	ret := &txnFuture{future: tsFuture, store: s.store}
-	failpoint.InjectContext(ctx, "mockGetTSFail", func() {
+	if _, ok := failpoint.EvalContext(ctx, _curpkg_("mockGetTSFail")); ok {
 		ret.future = txnFailFuture{}
-	})
+	}
 	return ret
 }
 
@@ -362,11 +362,11 @@ func (s *session) StmtCommit() error {
 	st := &s.txn
 	var count int
 	err := kv.WalkMemBuffer(st.buf, func(k kv.Key, v []byte) error {
-		failpoint.Inject("mockStmtCommitError", func(val failpoint.Value) {
+		if val, ok := failpoint.Eval(_curpkg_("mockStmtCommitError")); ok {
 			if val.(bool) {
 				count++
 			}
-		})
+		}
 
 		if count > 3 {
 			return errors.New("mock stmt commit error")

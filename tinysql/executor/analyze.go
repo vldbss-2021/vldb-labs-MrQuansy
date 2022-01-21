@@ -249,11 +249,11 @@ func (e *AnalyzeIndexExec) open(ranges []*ranger.Range, considerNull bool) error
 }
 
 func (e *AnalyzeIndexExec) buildStatsFromResult(result distsql.SelectResult, needCMS bool) (*statistics.Histogram, *statistics.CMSketch, error) {
-	failpoint.Inject("buildStatsFromResult", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("buildStatsFromResult")); ok {
 		if val.(bool) {
-			failpoint.Return(nil, nil, errors.New("mock buildStatsFromResult error"))
+			return nil, nil, errors.New("mock buildStatsFromResult error")
 		}
-	})
+	}
 	hist := &statistics.Histogram{}
 	var cms *statistics.CMSketch
 	if needCMS {

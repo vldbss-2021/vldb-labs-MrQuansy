@@ -188,12 +188,12 @@ func (s *schemaVersionSyncer) storeSession(session *concurrency.Session) {
 
 // Done implements SchemaSyncer.Done interface.
 func (s *schemaVersionSyncer) Done() <-chan struct{} {
-	failpoint.Inject("ErrorMockSessionDone", func(val failpoint.Value) {
+	if val, ok := failpoint.Eval(_curpkg_("ErrorMockSessionDone")); ok {
 		if val.(bool) {
 			err := s.loadSession().Close()
 			logutil.BgLogger().Info("close session failed", zap.Error(err))
 		}
-	})
+	}
 
 	return s.loadSession().Done()
 }
