@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/hex"
-
 	"github.com/pingcap-incubator/tinykv/kv/transaction/mvcc"
 	"github.com/pingcap-incubator/tinykv/proto/pkg/kvrpcpb"
 	"github.com/pingcap/log"
@@ -50,6 +49,7 @@ func (p *Prewrite) PrepareWrites(txn *mvcc.MvccTxn) (interface{}, error) {
 	for _, m := range p.request.Mutations {
 		keyError, err := p.prewriteMutation(txn, m)
 		if keyError != nil {
+			log.Info("error")
 			response.Errors = append(response.Errors, keyError)
 		} else if err != nil {
 			return nil, err
@@ -70,17 +70,52 @@ func (p *Prewrite) prewriteMutation(txn *mvcc.MvccTxn, mut *kvrpcpb.Mutation) (*
 	// Hint: Check the interafaces provided by `mvcc.MvccTxn`. The error type `kvrpcpb.WriteConflict` is used
 	//		 denote to write conflict error, try to set error information properly in the `kvrpcpb.KeyError`
 	//		 response.
-	panic("prewriteMutation is not implemented yet")
-
+	write, ts, err := txn.MostRecentWrite(key)
+	if err != nil {
+		return nil, err
+	}
+	if write != nil && txn.StartTS <= ts {
+		return &kvrpcpb.KeyError{Conflict: &kvrpcpb.WriteConflict{
+			StartTs:    txn.StartTS,
+			ConflictTs: ts,
+			Key:        key,
+			Primary:    p.request.PrimaryLock,
+		}}, nil
+	}
 	// YOUR CODE HERE (lab2).
 	// Check if key is locked. Report key is locked error if lock does exist, note the key could be locked
 	// by this transaction already and the current prewrite request is stale.
-	panic("check lock in prewrite is not implemented yet")
-
+	lock, err := txn.GetLock(key)
+	if err != nil {
+		return nil, err
+	}
+	if lock != nil && lock.Ts != txn.StartTS {
+		return &kvrpcpb.KeyError{Locked: &kvrpcpb.LockInfo{
+			PrimaryLock: lock.Primary,
+			LockVersion: lock.Ts,
+			Key:         key,
+			LockTtl:     lock.Ttl,
+		}}, nil
+	}
 	// YOUR CODE HERE (lab2).
 	// Write a lock and value.
 	// Hint: Check the interfaces provided by `mvccTxn.Txn`.
-	panic("lock record generation is not implemented yet")
+	var kind mvcc.WriteKind
+	switch mut.Op {
+	case kvrpcpb.Op_Put:
+		kind = mvcc.WriteKindPut
+	case kvrpcpb.Op_Del:
+		kind = mvcc.WriteKindDelete
+	case kvrpcpb.Op_Rollback:
+		kind = mvcc.WriteKindRollback
+	}
+	txn.PutLock(key, &mvcc.Lock{
+		Primary: p.request.PrimaryLock,
+		Ts:      txn.StartTS,
+		Ttl:     p.request.LockTtl,
+		Kind:    kind,
+	})
+	txn.PutValue(key, mut.Value)
 
 	return nil, nil
 }
