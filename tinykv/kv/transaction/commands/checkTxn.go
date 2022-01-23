@@ -38,7 +38,7 @@ func (c *CheckTxnStatus) PrepareWrites(txn *mvcc.MvccTxn) (interface{}, error) {
 			// Lock has expired, try to rollback it. `mvcc.WriteKindRollback` could be used to
 			// represent the type. Try using the interfaces provided by `mvcc.MvccTxn`.
 			txn.DeleteLock(key)
-			//txn.DeleteValue(key)
+			txn.DeleteValue(key)
 			txn.PutWrite(key, txn.StartTS, &mvcc.Write{
 				StartTS: txn.StartTS,
 				Kind:    mvcc.WriteKindRollback,
